@@ -8,27 +8,7 @@ Backend NestJS para mensajeria, configuracion, suscripciones y AI.
 - MySQL o MariaDB
 - Prisma CLI
 
-## Variables de entorno
 
-Crea un archivo `.env` y configura al menos:
-
-- DATABASE_URL
-- JWT_SECRET
-- JWT_REFRESH_SECRET
-- ENCRYPTION_KEY
-- MAIL_HOST
-- MAIL_PORT
-- MAIL_USER
-- MAIL_PASS
-- MAIL_FROM
-- WHATSAPP_API_BASE_URL
-- WHATSAPP_API_VERSION
-- WHATSAPP_VERIFY_TOKEN
-- WHATSAPP_WEBHOOK_URL
-- FIREBASE_PROJECT_ID
-- FIREBASE_CLIENT_EMAIL
-- FIREBASE_PRIVATE_KEY
-- FIREBASE_STORAGE_BUCKET
 
 ## Instalacion
 
