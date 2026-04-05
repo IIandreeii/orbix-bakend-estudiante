@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  firstName   String    @db.VarChar(100)
+  lastName    String    @db.VarChar(100)
+  phone       String?   @db.VarChar(20)
+  address     String?   @db.VarChar(255)
+  city        String?   @db.VarChar(100)
+  state       String?   @db.VarChar(100)
+  zipCode     String?   @db.VarChar(20)
+  countryCode String?   @db.VarChar(10)
+  role        Role      @default(MASTER)
+  isActive    Boolean   @default(true)
+  
+  parentId    String?
+  parent      User?     @relation("UserSubAccounts", fields: [parentId], references: [id])
+  subAccounts User[]    @relation("UserSubAccounts")
+  
+  // Relaciones
+  authMethods   UserAuth[]
+  refreshTokens RefreshToken[]
+  subscription  Subscription?
+  whatsAppAccounts WhatsAppAccount[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("users")
+}
+
+enum PlanType {
+  TRIAL
+  BASIC
+  ADVANCED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+}
+
+model Subscription {
+  id             String             @id @default(uuid())
+  userId         String             @unique
+  planType       PlanType           @default(TRIAL)
+  status         SubscriptionStatus @default(ACTIVE)
+  startDate      DateTime           @default(now())
+  endDate        DateTime           
+  
+  whatsappLimit  Int                @default(1)
+  advisorsLimit  Int                @default(10)
+  shopsLimit     Int                @default(5)
+  
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments       SubscriptionPayment[]
+  
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+model SubscriptionPayment {
+  id               String         @id @default(uuid())
+  subscriptionId   String
+  purchaseNumber   String?        @unique
+  amount           Decimal        @db.Decimal(10, 2)
+  currency         String         @default("PEN")
+  planType         PlanType       @default(BASIC)
+  status           PaymentStatus  @default(PENDING)
+  
+  transactionId    String?        @unique
+  paymentMethod    String?
+  paidAt           DateTime?
+  
+  subscription     Subscription   @relation(fields: [subscriptionId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("subscription_payments")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(500)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@map("password_reset_tokens")
+}
+
+model UserAuth {
+  id          String       @id @default(uuid())
+  userId      String
+  strategy    AuthStrategy
+  identifier  String       
+  credential  String?      
+  
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([strategy, identifier])
+  @@map("user_auths")
+}
+
+enum Role {
+  MASTER
+  SUPERMASTER
+  ADMIN
+  ADVISER
+}
+
+enum AuthStrategy {
+  PASSWORD
+  GOOGLE
+}
+
+// --- Especial Enums ---
+enum AIProvider {
+  OPENAI
+  GOOGLE
+  ANTHROPIC
+}
+
+enum AIModel {
+  GPT_4O
+  GP_4_TURBO
+  GPT_3_5_TURBO
+  GEMINI_2_0_FLASH
+  GEMINI_2_0_FLASH_LITE
+  GEMINI_2_5_FLASH
+  CLAUDE_3_5_SONNET
+}
+
+enum TemplateType {
+  AGENCY
+  GENERIC
+  CASH_ON_DELIVERY
+}
+
+
+model WhatsAppAccount {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber     String         @db.VarChar(20)
+  metaPhoneNumberId String       @unique @db.VarChar(255)
+  wabaId          String?        @db.VarChar(255)
+  accessToken     String         @db.VarChar(500)
+  pin             String?        @db.VarChar(500)
+  isActive        Boolean        @default(true)
+  isWebhookConnected Boolean     @default(false)
+  
+  // Relationships
+  aiConfig        AIConfig?
+
+  stores          Store[]
+  templates       WhatsAppTemplate[]
+  quickResponses  QuickResponse[]
+  chats           Chat[]
+  labels          Label[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("whatsapp_accounts")
+}
+
+model AIConfig {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String          @unique
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  provider          AIProvider      @default(GOOGLE)
+  model             AIModel         @default(GEMINI_2_0_FLASH)
+  apiKey            String?         @db.VarChar(500)
+  isAssistantEnabled Boolean        @default(true)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("ai_configs")
+}
+
+
+
+model Store {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  name              String          @db.VarChar(255)
+  domain            String?         @db.VarChar(255)
+  externalStoreId   String?         @db.VarChar(255)
+  code              String?         @db.VarChar(1000)
+  isActive          Boolean         @default(true)
+  
+  products          Product[]
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("stores")
+}
+
+model Product {
+  id                String          @id @default(uuid())
+  storeId           String
+  store             Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  externalProductId String?         @db.VarChar(255) // e.g., Shopify Product ID
+  name              String          @db.VarChar(500)
+  description       String?         @db.VarChar(2000)
+  price             Decimal?        @db.Decimal(10, 2)
+  currency          String?         @db.VarChar(10) @default("PEN")
+  stock             Int?            @default(0)
+  sku               String?         @db.VarChar(100)
+  imageUrl          String?         @db.VarChar(1000)
+  videoUrl          String?         @db.VarChar(1000)
+  isActive          Boolean         @default(true)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("products")
+}
+
+model WhatsAppTemplate {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  name              String          @db.VarChar(255)
+  code              String?         @db.VarChar(255)
+  language          String          @default("es")
+  status            String?         @db.VarChar(50)
+  templateType      TemplateType?
+  content           String?         @db.Text
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("whatsapp_templates")
+}
+
+model QuickResponse {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  keyword           String          @db.VarChar(255)
+  responseMessage   String          @db.VarChar(2000)
+  imageUrl          String?         @db.VarChar(1000)
+  videoUrl          String?         @db.VarChar(1000)
+  isConfirmed       Boolean         @default(false)
+  isInformative     Boolean         @default(false)
+  isActive          Boolean         @default(true)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("quick_responses")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  TEMPLATE
+  STICKER
+  REACTION
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  DELETED
+}
+
+model Chat {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  customerPhone     String          @db.VarChar(20)
+  customerName      String?         @db.VarChar(255)
+  
+  unreadCount       Int             @default(0)
+  lastMessageContent String?        @db.Text
+  
+  messages          Message[]
+  labels            Label[]           @relation("ChatLabels")
+  
+  lastMessageAt     DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([whatsAppAccountId, customerPhone])
+  @@map("chats")
+}
+
+model Message {
+  id                String           @id @default(uuid())
+  chatId            String
+  chat              Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  waMessageId       String?          @unique @db.VarChar(255)
+  direction         MessageDirection
+  type              MessageType      @default(TEXT)
+  content           String?          @db.Text
+  mediaId           String?          @db.VarChar(255)
+  mediaUrl          String?          @db.VarChar(1000)
+  mimeType          String?          @db.VarChar(100)
+  
+  status            MessageStatus    @default(SENT)
+  sentByAI          Boolean          @default(false)
+  
+  errorCode         Int?             
+  errorDetails      String?          @db.Text
+
+  quotedMessageId   String?          @db.VarChar(255)
+
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("messages")
+}
+
+model Label {
+  id                String          @id @default(uuid())
+  whatsAppAccountId String
+  whatsAppAccount   WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+  
+  name              String          @db.VarChar(50)
+  color             String          @db.VarChar(7) // HEX color
+  
+  chats             Chat[]          @relation("ChatLabels")
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("labels")
+}
+
+model TutorialModule {
+  id          String             @id @default(uuid())
+  title       String             @db.VarChar(100)
+  description String             @db.VarChar(255)
+  questions   TutorialQuestion[]
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("tutorial_modules")
+}
+
+model TutorialQuestion {
+  id          String         @id @default(uuid())
+  moduleId    String
+  tutorialModule TutorialModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  question    String         @db.Text
+  answer      String         @db.Text
+  videoUrl    String?        @db.VarChar(255)
+  documentUrl String?        @db.VarChar(255)
+  imageUrl    String?        @db.VarChar(255)
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("tutorial_questions")
+}
+
