@@ -42,6 +42,12 @@ $ pnpm run start:dev
 
 # production mode
 $ pnpm run start:prod
+
+$ npx prisma init
+
+$ npx prisma migrate dev --name init
+
+$ entorno sql:create database orbixagent
 ```
 
 ## Run tests
