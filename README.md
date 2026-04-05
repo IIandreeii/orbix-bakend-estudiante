@@ -13,7 +13,7 @@ Backend NestJS para mensajeria, configuracion, suscripciones y AI.
 ## Instalacion
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## Migraciones Prisma
@@ -26,10 +26,6 @@ npx prisma migrate deploy
 ## Ejecutar
 
 ```bash
-npm run start:dev
+pnpm run start:dev
 ```
 
-## Notas
-
-- Shopify fue removido en este proyecto.
-- Revisa `src/main.ts` para swagger y configuracion global.
