@@ -332,5 +332,36 @@ export class WhatsAppCloudApiService implements IWhatsAppMessagingService {
       );
       return null;
     }
+  }async updateTemplate(
+    whatsAppAccountId: string,
+    templateId: string,
+    data: any,
+  ): Promise<void> {
+    const account = await this.accountRepository.findById(whatsAppAccountId);
+    if (!account) {
+      throw new Error('WhatsApp account not found');
+    }
+
+    const url = `${this.baseUrl}/${templateId}`;
+
+    this.logger.log(`[WhatsAppService] Actualizando plantilla ${templateId} en Meta...`);
+
+    try {
+      await axios.post(
+        url,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${account.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      this.logger.log(`[WhatsAppService] Plantilla ${templateId} actualizada con éxito en Meta.`);
+    } catch (error) {
+      const fullErrorMessage = this.formatMetaError(error);
+      this.logger.error(`Error updating template: ${fullErrorMessage}`);
+      throw new Error(fullErrorMessage);
+    }
   }
 }

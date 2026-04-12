@@ -11,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+
 import { SendMessageDto } from '../../dtos/messaging/send-message.dto';
+import { CreateChatDto } from '../../dtos/messaging/create-chat.dto';
+import { UpdateChatDto } from '../../dtos/messaging/update-chat.dto';
+import { UpdateTemplateDto } from '../../dtos/config/automation-request.dto';
+
 import { SendMessageUseCase } from '../../../../core/application/use-cases/messaging/send-message.use-case';
 import { MarkChatAsReadUseCase } from '../../../../core/application/use-cases/messaging/mark-chat-as-read.use-case';
 import { ListChatsUseCase } from '../../../../core/application/use-cases/messaging/list-chats.use-case';
@@ -20,8 +25,8 @@ import { SearchMessagesUseCase } from '../../../../core/application/use-cases/me
 import { GetMessageContextUseCase } from '../../../../core/application/use-cases/messaging/get-message-context.use-case';
 import { CreateChatUseCase } from '../../../../core/application/use-cases/messaging/create-chat.use-case';
 import { UpdateChatUseCase } from '../../../../core/application/use-cases/messaging/update-chat.use-case';
-import { CreateChatDto } from '../../dtos/messaging/create-chat.dto';
-import { UpdateChatDto } from '../../dtos/messaging/update-chat.dto';
+import { ListTemplatesUseCase } from '../../../../core/application/use-cases/messaging/list-templates.use-case';
+import { UpdateTemplateUseCase } from '../../../../core/application/use-cases/messaging/update-template.use-case';
 
 @ApiTags('messaging/whatsapp')
 @ApiBearerAuth()
@@ -37,19 +42,20 @@ export class WhatsAppMessagingController {
     private readonly getMessageContextUseCase: GetMessageContextUseCase,
     private readonly createChatUseCase: CreateChatUseCase,
     private readonly updateChatUseCase: UpdateChatUseCase,
+
+    private readonly listTemplatesUseCase: ListTemplatesUseCase,
+    private readonly updateTemplateUseCase: UpdateTemplateUseCase,
   ) {}
 
   @Get(':whatsAppAccountId/chats')
-  @ApiOperation({
-    summary: 'Listar chats de una cuenta de WhatsApp (paginado + búsqueda)',
-  })
+  @ApiOperation({ summary: 'Listar chats de una cuenta de WhatsApp' })
   async getChats(
     @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
-    return await this.listChatsUseCase.execute({
+    return this.listChatsUseCase.execute({
       whatsAppAccountId,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
@@ -58,93 +64,54 @@ export class WhatsAppMessagingController {
   }
 
   @Post(':whatsAppAccountId/chats')
-  @ApiOperation({ summary: 'Crear un nuevo chat manualmente' })
+  @ApiOperation({ summary: 'Crear chat' })
   async createChat(
     @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
     @Body() dto: CreateChatDto,
   ) {
-    return await this.createChatUseCase.execute({
+    return this.createChatUseCase.execute({
       whatsAppAccountId,
       ...dto,
     });
   }
 
   @Patch('chats/:chatId')
-  @ApiOperation({ summary: 'Editar información de un chat' })
+  @ApiOperation({ summary: 'Actualizar chat' })
   async updateChat(
     @Param('chatId', ParseUUIDPipe) chatId: string,
     @Body() dto: UpdateChatDto,
   ) {
-    return await this.updateChatUseCase.execute({
+    return this.updateChatUseCase.execute({
       chatId,
       ...dto,
     });
   }
 
   @Get('chats/:chatId/messages')
-  @ApiOperation({ summary: 'Listar mensajes de un chat' })
+  @ApiOperation({ summary: 'Listar mensajes' })
   async getMessages(
     @Param('chatId', ParseUUIDPipe) chatId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Query('before_id') beforeId?: string,
-    @Query('after_id') afterId?: string,
   ) {
-    return await this.listMessagesUseCase.execute({
+    return this.listMessagesUseCase.execute({
       chatId,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 30,
       search: search || undefined,
-      beforeId,
-      afterId,
     });
   }
 
   @Patch('chats/:chatId/read')
-  @ApiOperation({ summary: 'Marcar chat como leído' })
+  @ApiOperation({ summary: 'Marcar como leído' })
   async markAsRead(@Param('chatId', ParseUUIDPipe) chatId: string) {
     await this.markChatAsReadUseCase.execute({ chatId });
     return { success: true };
   }
 
-  @Get(':whatsAppAccountId/search-messages')
-  @ApiOperation({
-    summary: 'Buscar mensajes en todo el historial de la cuenta',
-  })
-  async searchMessages(
-    @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
-    @Query('search') search?: string,
-    @Query('labelId') labelId?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return await this.searchMessagesUseCase.execute({
-      whatsAppAccountId,
-      search: search || '',
-      labelId,
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
-    });
-  }
-
-  @Get('messages/jump/:messageId')
-  @ApiOperation({
-    summary:
-      'Saltar al contexto de un mensaje específico (mensajes de alrededor)',
-  })
-  async jumpToMessage(
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Query('limit') limit?: string,
-  ) {
-    return await this.getMessageContextUseCase.execute({
-      messageId,
-      limit: limit ? parseInt(limit, 10) : 20,
-    });
-  }
-
   @Post(':whatsAppAccountId/send')
-  @ApiOperation({ summary: 'Enviar un mensaje (texto o media)' })
+  @ApiOperation({ summary: 'Enviar mensaje' })
   async send(
     @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
     @Body() dto: SendMessageDto,
@@ -153,6 +120,36 @@ export class WhatsAppMessagingController {
       whatsAppAccountId,
       ...dto,
     });
-    return { success: true, message: 'Mensaje enviado correctamente' };
+    return { success: true };
+  }
+
+
+
+  
+
+  
+
+  @Get(':whatsAppAccountId/templates')
+  @ApiOperation({ summary: 'Listar plantillas' })
+  async getTemplates(
+    @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
+  ) {
+    return this.listTemplatesUseCase.execute({ whatsAppAccountId });
+  }
+
+
+
+  @Patch(':whatsAppAccountId/templates/:templateId')
+  @ApiOperation({ summary: 'Actualizar plantilla' })
+  async updateTemplate(
+    @Param('whatsAppAccountId', ParseUUIDPipe) whatsAppAccountId: string,
+    @Param('templateId') templateId: string,
+    @Body() dto: UpdateTemplateDto,
+  ) {
+    return this.updateTemplateUseCase.execute({
+      whatsAppAccountId,
+      templateId,
+      ...dto,
+    });
   }
 }

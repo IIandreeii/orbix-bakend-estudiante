@@ -51,4 +51,9 @@ export interface IWhatsAppMessagingService {
     whatsAppAccountId: string,
     templateName: string,
   ): Promise<string | null>;
+  updateTemplate(
+    whatsAppAccountId: string,
+    templateId: string,
+    data: any,
+  ): Promise<void>;
 }

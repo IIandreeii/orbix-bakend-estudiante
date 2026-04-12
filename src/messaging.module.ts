@@ -80,6 +80,8 @@ import { OutboundMessageDispatcherService } from './infrastructure/services/outb
 import { InboundMediaProcessorService } from './infrastructure/services/inbound-media-processor.service';
 import { InboundMessagePostProcessorService } from './infrastructure/services/inbound-message-post-processor.service';
 import { AIResponseDeliveryService } from './infrastructure/services/ai-response-delivery.service';
+import { ListTemplatesUseCase } from './core/application/use-cases/messaging/list-templates.use-case';
+import { UpdateTemplateUseCase } from './core/application/use-cases/messaging/update-template.use-case';
 
 const repositories: Provider[] = [
   { provide: 'IChatRepository', useClass: PrismaChatRepository },
@@ -280,6 +282,21 @@ const useCases: Provider[] = [
       ),
   },
   { provide: 'IAgentOrchestrator', useExisting: ProcessAIResponseUseCase },
+{
+    provide: ListTemplatesUseCase,
+    inject: ['IWhatsAppTemplateRepository'],
+    useFactory: (templateRepo: IWhatsAppTemplateRepository) => 
+      new ListTemplatesUseCase(templateRepo),
+  },
+  {
+    provide: UpdateTemplateUseCase,
+    inject: ['IWhatsAppTemplateRepository', 'IWhatsAppMessagingService'],
+    useFactory: (
+      templateRepo: IWhatsAppTemplateRepository,
+      waService: IWhatsAppMessagingService,
+    ) => new UpdateTemplateUseCase(templateRepo, waService),
+  },
+
 ];
 
 @Module({
